@@ -1,0 +1,6 @@
+{% extends django_admin_suggest_parent %}
+
+{% block extrahead %}
+  {{ block.super }}
+  {{ django_admin_suggest_search|json_script:"django-admin-suggest-search" }}
+{% endblock extrahead %}

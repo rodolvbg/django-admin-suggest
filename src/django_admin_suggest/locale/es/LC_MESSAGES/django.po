@@ -1,0 +1,28 @@
+# Spanish translation of django-admin-suggest.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: django-admin-suggest 0.1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-28 10:00+0000\n"
+"PO-Revision-Date: 2026-10-28 10:00+0100\n"
+"Last-Translator: Rodolfo Becerra\n"
+"Language-Team: Spanish\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;\n"
+
+#: search.py
+#, python-format
+msgid "Add “%(term)s”"
+msgstr "Añadir «%(term)s»"
+
+#: search.py
+msgid "Suggestions"
+msgstr "Sugerencias"
+
+#: search.py
+msgid "Nothing found."
+msgstr "No se encontró nada."

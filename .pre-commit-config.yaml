@@ -1,0 +1,66 @@
+default_language_version:
+  python: &python-version python3.14
+
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
+  hooks:
+  - id: check-added-large-files
+  - id: check-case-conflict
+  - id: check-json
+  - id: check-merge-conflict
+  - id: check-symlinks
+  - id: check-toml
+  - id: debug-statements
+  - id: end-of-file-fixer
+  - id: trailing-whitespace
+
+- repo: https://github.com/biomejs/pre-commit
+  rev: d1ce4972fb5ad09afd33b432bca71e8c5dfbb2b5  # frozen: v2.5.6
+  hooks:
+  - id: biome-check
+    additional_dependencies:
+    - '@biomejs/biome@2.3.8'
+    language_version: default
+
+- repo: https://github.com/adamchainz/django-upgrade
+  rev: bdcc9646c249f00ec9781751791e7b75b48b3722  # frozen: 1.31.1
+  hooks:
+  - id: django-upgrade
+    args: [--target-version, "4.2"]
+
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: 39d9ac5938dadb73df0564a45f163e25ff9fa6e2  # frozen: v0.16.1
+  hooks:
+  - id: ruff-check
+    args: [--fix]
+  - id: ruff-format
+
+- repo: local
+  hooks:
+  - id: mypy
+    name: mypy
+    entry: mypy
+    language: python
+    additional_dependencies:
+    - mypy>=1.10
+    - django-stubs[compatible-mypy]>=5
+    - django>=4.2
+    - pytest-django>=4.8
+    types: [python]
+    files: ^(src|example)/
+    pass_filenames: false
+    args: [src/django_admin_suggest, example]
+
+# Only needed if the library ships Django templates (src/<pkg>/templates/).
+# Remove this hook if it doesn't.
+- repo: https://github.com/adamchainz/djade-pre-commit
+  rev: 52a7ce253113456c2a1113186a4a19b15c8b68af  # frozen: 1.9.0
+  hooks:
+  - id: djade
+    files: '(/|^)templates/'
+
+- repo: https://github.com/tox-dev/pyproject-fmt
+  rev: d600c142bb19f521ae6a6a345f94a2efd7937759  # frozen: v2.26.0
+  hooks:
+  - id: pyproject-fmt
