@@ -10,7 +10,9 @@
     },
     "devDependencies": {
         "@vitest/coverage-v8": "^3.2.7",
+        "jquery": "3.7.1",
         "jsdom": "^26.1.0",
+        "select2": "4.0.13",
         "vitest": "^3.2.7"
     }
 }

@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `AutocompleteAddMixin`: an autocomplete field that finds nothing offers
+  "+ Add “…”", which opens the field's own "add" link (the admin's popup,
+  Unfold's modal) with what was typed in a field of the add page
+  (`get_autocomplete_add_field()`: by default, the related admin's search
+  field); once saved, it's chosen. `autocomplete_add`: `True`, or the
+  fields that offer it.
+- `search_add_field(model, search_fields)`: the field a search term goes
+  in, adding it (what `search_suggestions_add = True` uses).
+
 ## [0.1.0] - 2026-10-28
 
 ### Added

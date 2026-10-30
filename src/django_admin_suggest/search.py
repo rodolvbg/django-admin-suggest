@@ -23,6 +23,25 @@ if TYPE_CHECKING:
     from django.urls import URLPattern
 
 
+def search_add_field(model: type[Model], search_fields: Sequence[str]) -> str | None:
+    """The first of ``search_fields`` that is an editable field of ``model``
+    (``^title`` and ``title__iexact`` too: ``title``): the one what was
+    searched for goes in, adding it. None: none is."""
+    for name in search_fields:
+        field_name, *lookups = name.lstrip("^=@").split("__")
+        try:
+            field = model._meta.get_field(field_name)
+        except FieldDoesNotExist:
+            continue
+        if field.is_relation or field.auto_created or not field.editable:
+            continue
+        # Its own lookup at most (title__iexact), not a transform's.
+        if len(lookups) > 1 or (lookups and not field.get_lookup(lookups[0])):
+            continue
+        return field.name
+    return None
+
+
 class SearchSuggestionsMixin(BaseModelAdmin):
     """``ModelAdmin`` mixin: the changelist's search box suggests the
     objects it finds as one types, and choosing one opens its change page::
@@ -110,19 +129,10 @@ class SearchSuggestionsMixin(BaseModelAdmin):
         and ``title__iexact`` too: ``title``). None: the add page as it is."""
         if isinstance(self.search_suggestions_add, str):
             return self.search_suggestions_add
-        for name in self.get_search_fields(request):  # type: ignore[attr-defined]
-            field_name, *lookups = name.lstrip("^=@").split("__")
-            try:
-                field = self.model._meta.get_field(field_name)
-            except FieldDoesNotExist:
-                continue
-            if field.is_relation or field.auto_created or not field.editable:
-                continue
-            # Its own lookup at most (title__iexact), not a transform's.
-            if len(lookups) > 1 or (lookups and not field.get_lookup(lookups[0])):
-                continue
-            return field.name
-        return None
+        return search_add_field(
+            self.model,
+            self.get_search_fields(request),  # type: ignore[attr-defined]
+        )
 
     def get_search_suggestion_add_url(
         self, request: HttpRequest, term: str

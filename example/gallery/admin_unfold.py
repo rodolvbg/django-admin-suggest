@@ -4,7 +4,7 @@ from django.contrib import admin
 from unfold.admin import ModelAdmin
 from unfold.sites import UnfoldAdminSite
 
-from django_admin_suggest import SearchSuggestionsMixin
+from django_admin_suggest import AutocompleteAddMixin, SearchSuggestionsMixin
 
 from .models import Album, Image
 
@@ -14,12 +14,15 @@ site = UnfoldAdminSite(name="admin")
 @admin.register(Album, site=site)
 class AlbumAdmin(SearchSuggestionsMixin, ModelAdmin):
     search_fields = ("title",)
+    ordering = ("title",)
     search_suggestions = True
 
 
 @admin.register(Image, site=site)
-class ImageAdmin(SearchSuggestionsMixin, ModelAdmin):
+class ImageAdmin(AutocompleteAddMixin, SearchSuggestionsMixin, ModelAdmin):
     list_display = ("title", "album")
     search_fields = ("title", "album__title")
     search_suggestions = True
     search_suggestions_add = True
+    autocomplete_fields = ("album",)
+    autocomplete_add = True

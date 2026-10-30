@@ -10,7 +10,8 @@
 Suggestions as one types, for the Django admin and
 [django-unfold](https://github.com/unfoldadmin/django-unfold): the
 changelist's search box suggests the objects it finds, opens the one
-chosen, and offers to add what isn't found.
+chosen, and offers to add what isn't found; an autocomplete field that
+finds nothing offers to add it too.
 
 ## Install
 
@@ -88,6 +89,44 @@ With `search_suggestions_add`, when nothing is found:
 ![The search box with "Lighthouse" typed: nothing found, and "+ Add “Lighthouse”" highlighted](docs/screenshots/search-suggestions-add.png)
 
 ![The same, in Unfold](docs/screenshots/search-suggestions-add-unfold.png)
+
+## Adding from an autocomplete field
+
+An autocomplete field (`autocomplete_fields`) that finds nothing offers to
+add what was typed: "+ Add “…”", under "No results found", opens the
+field's own "add" link — the admin's popup, Unfold's modal — with it in a
+field of the add page; once saved, it's chosen, as the admin does.
+
+```python
+from django.contrib import admin
+from django_admin_suggest import AutocompleteAddMixin
+
+
+@admin.register(Appointment)
+class AppointmentAdmin(AutocompleteAddMixin, admin.ModelAdmin):
+    autocomplete_fields = ("patient", "room")
+    autocomplete_add = True  # or the fields that offer it: ("patient",)
+
+    def get_autocomplete_add_field(self, request, db_field):  # optional
+        return "full_name"  # the patient's field what was typed goes in
+```
+
+- The field it goes in, by default: the related admin's first search
+  field that is an editable field of its model (`"^name"` counts as
+  `name`), or, with `SearchSuggestionsMixin`, its `search_suggestions_add`.
+  None: the add page as it is.
+- Only where the field has its "add" link: for those who may add one.
+- Mouse or Enter. For a single or multiple field (`ForeignKey`,
+  `ManyToManyField`), in the form or in its inlines (the mixin goes on the
+  inline, then).
+- It's the field's own link that opens it: whatever opens it (the admin's
+  popup, Unfold's modal) opens it the same way.
+
+![An album field with "Lake" typed: "No results found", and "+ Add “Lake”" under it](docs/screenshots/autocomplete-add.png)
+
+![The same, in Unfold](docs/screenshots/autocomplete-add-unfold.png)
+
+![Unfold's modal, the album's add page with "Lake" as its title](docs/screenshots/autocomplete-add-unfold-modal.png)
 
 ## With other packages
 

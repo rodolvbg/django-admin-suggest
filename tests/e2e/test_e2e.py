@@ -9,6 +9,7 @@ import re
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
+from django.test import modify_settings, override_settings
 from gallery.models import Album, Image
 from playwright.sync_api import Page, expect
 
@@ -50,10 +51,10 @@ class _AdminE2ETestCase(StaticLiveServerTestCase):
         get_user_model().objects.create_superuser(
             "admin", "admin@example.com", "password"
         )
-        self.page.goto(f"{self.live_server_url}/admin/login/")
+        self.page.goto(f"{self.live_server_url}/admin/login/?next=/admin/")
         self.page.fill('input[name="username"]', "admin")
         self.page.fill('input[name="password"]', "password")
-        self.page.click('input[type="submit"]')
+        self.page.click('#login-form [type="submit"]')
         expect(self.page).to_have_url(f"{self.live_server_url}/admin/")
 
     def create_album(self, *, images: tuple[str, ...] = ()) -> Album:
@@ -125,3 +126,91 @@ class TestSearchSuggestions(_AdminE2ETestCase):
         search.press("Enter")
         expect(page).to_have_url(re.compile(r"/image/add/\?title=Lake$"))
         expect(page.locator("input[name=title]")).to_have_value("Lake")
+
+
+class TestAutocompleteAdd(_AdminE2ETestCase):
+    """The example's ImageAdmin: its album, an autocomplete field, offers to
+    add the album it doesn't find."""
+
+    def open_album_field(self):
+        page = self.page
+        page.goto(f"{self.live_server_url}/admin/gallery/image/add/")
+        page.locator("#id_album + .select2").click()
+        return page.locator(".select2-container--open .select2-search__field")
+
+    def test_adds_the_album_it_doesnt_find_and_chooses_it(self):
+        self.create_album()
+        self.login()
+        page = self.page
+        search = self.open_album_field()
+        search.press_sequentially("Lake")
+        add = page.locator(".django-admin-suggest-autocomplete-add")
+        expect(add).to_have_text("+ Add “Lake”")
+        expect(page.locator(".select2-results__message")).to_be_visible()
+
+        # The admin's popup, its title filled.
+        with page.expect_popup() as info:
+            add.click()
+        popup = info.value
+        expect(popup).to_have_url(re.compile(r"/album/add/\?.*title=Lake"))
+        expect(popup.locator("input[name=title]")).to_have_value("Lake")
+        popup.locator("input[name=_save]").click()
+
+        # Once saved, chosen.
+        lake = Album.objects.get(title="Lake")
+        expect(page.locator("#id_album")).to_have_value(str(lake.pk))
+        expect(page.locator("#select2-id_album-container")).to_have_text(
+            re.compile("Lake")
+        )
+
+    def test_enter_adds_it(self):
+        self.login()
+        page = self.page
+        search = self.open_album_field()
+        search.press_sequentially("Pond")
+        expect(page.locator(".django-admin-suggest-autocomplete-add")).to_be_visible()
+        with page.expect_popup() as info:
+            search.press("Enter")
+        expect(info.value.locator("input[name=title]")).to_have_value("Pond")
+        # The link as it was.
+        expect(page.locator("#add_id_album")).not_to_have_attribute(
+            "href", re.compile("Pond")
+        )
+
+    def test_not_while_it_finds_some(self):
+        self.create_album()
+        self.login()
+        page = self.page
+        search = self.open_album_field()
+        search.press_sequentially("Holi")
+        expect(
+            page.locator(".select2-results__option", has_text="Holiday")
+        ).to_be_visible()
+        expect(page.locator(".django-admin-suggest-autocomplete-add")).to_have_count(0)
+
+
+@modify_settings(INSTALLED_APPS={"prepend": "unfold"})
+@override_settings(ROOT_URLCONF="example.urls_unfold")
+class TestAutocompleteAddUnfold(_AdminE2ETestCase):
+    """The same, in Unfold: its "add" link opens a modal (an iframe)."""
+
+    def test_adds_it_in_unfolds_modal_and_chooses_it(self):
+        self.login()
+        page = self.page
+        page.goto(f"{self.live_server_url}/admin/gallery/image/add/")
+        page.locator("#id_album + .select2").click()
+        search = page.locator(".select2-container--open .select2-search__field")
+        search.press_sequentially("Lake")
+        add = page.locator(".django-admin-suggest-autocomplete-add")
+        expect(add).to_have_text("+ Add “Lake”")
+
+        add.click()
+
+        modal = page.frame_locator("iframe.related-modal-frame")
+        expect(modal.locator("input[name=title]")).to_have_value("Lake")
+        modal.locator("button[name=_save]").click()
+
+        expect(page.locator("#id_album option:checked")).to_have_text("Lake")
+        lake = Album.objects.get(title="Lake")
+        expect(page.locator("#id_album")).to_have_value(str(lake.pk))
+        expect(page.locator("iframe.related-modal-frame")).to_be_hidden()

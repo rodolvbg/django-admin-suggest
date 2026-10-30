@@ -1,0 +1,16 @@
+/* AutocompleteAddMixin: "+ Add “…”" under Select2's "No results found",
+   highlighted as the option one would choose. The admin highlights only
+   Select2's own options ([aria-selected]); this one isn't, so its colors
+   are here: the admin's (--primary), or Unfold's (--color-base-*, dark
+   under .dark). */
+
+.select2-container .django-admin-suggest-autocomplete-add {
+    border-top: 1px solid var(--hairline-color, rgb(0 0 0 / 0.1));
+    background-color: var(--color-base-100, var(--primary));
+    color: var(--primary-fg, inherit);
+    cursor: pointer;
+}
+
+.dark .select2-container .django-admin-suggest-autocomplete-add {
+    background-color: var(--color-base-800);
+}
