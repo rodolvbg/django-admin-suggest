@@ -4,7 +4,7 @@ requires = [ "hatch-fancy-pypi-readme", "hatchling" ]
 
 [project]
 name = "django-admin-suggest"
-version = "0.1.0"
+version = "0.1.1"
 description = """\
   Suggestions as one types for the Django admin: the changelist's search box suggests the objects it finds, opens the \
   one chosen, and offers to add what isn't found. In Django's admin and in django-unfold.\
