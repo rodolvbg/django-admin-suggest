@@ -101,9 +101,11 @@
         // Select2's events are jQuery's: a native listener doesn't hear them.
         django
             .jQuery(document)
-            .on("select2:opening", "select[data-django-admin-suggest-add]", (
-                event,
-            ) => bind(event.target));
+            .on(
+                "select2:opening",
+                "select[data-django-admin-suggest-add]",
+                (event) => bind(event.target),
+            );
     }
 
     if (document.readyState === "loading") {

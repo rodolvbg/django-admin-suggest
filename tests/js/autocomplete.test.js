@@ -9,7 +9,11 @@ const SCRIPT =
 // django.jQuery as admin/js/jquery.init.js makes it.
 beforeAll(() => {
     const require = createRequire(import.meta.url);
-    for (const file of ["jquery/dist/jquery.js", "select2/dist/js/select2.full.js"]) {
+    for (const file of [
+        "jquery/dist/jquery.js",
+        "select2/dist/js/select2.full.js",
+    ]) {
+        // biome-ignore lint/security/noGlobalEval: the vendored scripts run as globals, as a <script> runs them.
         (0, eval)(readFileSync(require.resolve(file), "utf8"));
     }
     window.django = { jQuery: window.jQuery.noConflict(true) };
@@ -114,9 +118,9 @@ describe("autocomplete.js", () => {
         expect([...offered()].map((item) => item.textContent)).toEqual([
             "+ Add “Lake”",
         ]);
-        expect(
-            instance.$results.find(".select2-results__message").length,
-        ).toBe(1);
+        expect(instance.$results.find(".select2-results__message").length).toBe(
+            1,
+        );
         // The one to choose: highlighted, Select2's active one.
         expect(highlighted()).toEqual(["+ Add “Lake”"]);
     });
@@ -141,9 +145,9 @@ describe("autocomplete.js", () => {
         expect(href.searchParams.get("title")).toBe("Lake & co");
         expect(href.searchParams.get("_popup")).toBe("1");
         // The link as it was; nothing chosen.
-        expect(document.getElementById("add_id_album").getAttribute("href")).toBe(
-            "/admin/gallery/album/add/?_to_field=id&_popup=1",
-        );
+        expect(
+            document.getElementById("add_id_album").getAttribute("href"),
+        ).toBe("/admin/gallery/album/add/?_to_field=id&_popup=1");
         expect(instance.isOpen()).toBe(false);
         expect(changes).not.toHaveBeenCalled();
         expect(select.value).toBe("");
@@ -155,7 +159,9 @@ describe("autocomplete.js", () => {
         search(instance, "Lake");
         const hrefs = clicks();
         choose(offered()[0]);
-        expect(hrefs).toEqual(["/admin/gallery/album/add/?_to_field=id&_popup=1"]);
+        expect(hrefs).toEqual([
+            "/admin/gallery/album/add/?_to_field=id&_popup=1",
+        ]);
     });
 
     it("Enter adds it", async () => {
@@ -216,7 +222,10 @@ describe("autocomplete.js", () => {
         const select = page({ when: "always", options: [] });
         let next = null;
         const pages = {
-            1: { results: [{ id: 1, text: "Lake" }], pagination: { more: true } },
+            1: {
+                results: [{ id: 1, text: "Lake" }],
+                pagination: { more: true },
+            },
             2: { results: [{ id: 2, text: "Lakeside" }] },
         };
         const instance = open(select, {
