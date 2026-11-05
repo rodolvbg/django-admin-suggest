@@ -6,7 +6,11 @@ from django.conf import settings
 from django.contrib.admin import ModelAdmin
 from django.contrib.admin.options import IS_POPUP_VAR, BaseModelAdmin
 from django.contrib.admin.utils import quote
-from django.core.exceptions import FieldDoesNotExist, PermissionDenied
+from django.core.exceptions import (
+    FieldDoesNotExist,
+    ImproperlyConfigured,
+    PermissionDenied,
+)
 from django.forms import Media
 from django.http import JsonResponse, QueryDict
 from django.template.loader import select_template
@@ -21,6 +25,27 @@ if TYPE_CHECKING:
     from django.db.models import Model, QuerySet
     from django.http import HttpRequest, HttpResponse
     from django.urls import URLPattern
+
+
+#: When adding is offered: when nothing is found ("empty"), always
+#: ("always"), or unless one found is what was typed ("no_exact": case and
+#: spaces aside).
+ADD_WHEN = ("empty", "always", "no_exact")
+
+
+def offers_add(when: str, term: str, found: Sequence[str]) -> bool:
+    """Whether adding ``term`` is offered, by ``when`` (one of ``ADD_WHEN``),
+    with ``found`` the labels of what was found."""
+    if when not in ADD_WHEN:
+        raise ImproperlyConfigured(
+            f"{when!r} is not one of {', '.join(map(repr, ADD_WHEN))}."
+        )
+    if when == "always":
+        return True
+    if when == "empty":
+        return not found
+    typed = " ".join(term.split()).casefold()
+    return all(" ".join(label.split()).casefold() != typed for label in found)
 
 
 def search_add_field(model: type[Model], search_fields: Sequence[str]) -> str | None:
@@ -71,7 +96,8 @@ class SearchSuggestionsMixin(BaseModelAdmin):
     it: a link to the add page, with what was typed in a field (``True``:
     the first of ``search_fields`` that is a field of the model; a name:
     that field). Only for those who may add; ``get_search_suggestion_add_url()``
-    changes where it leads.
+    changes where it leads. ``search_suggestions_add_when``: ``"always"``,
+    after those found too; ``"no_exact"``, unless one is what was typed.
     """
 
     #: Whether the search box suggests objects.
@@ -84,6 +110,10 @@ class SearchSuggestionsMixin(BaseModelAdmin):
     #: the first of ``search_fields`` that is a field of the model), or the
     #: field's name.
     search_suggestions_add: bool | str = False
+    #: When it's offered: ``"empty"`` (nothing found), ``"always"`` (after
+    #: those found), or ``"no_exact"`` (unless one of them is what was typed,
+    #: case and spaces aside).
+    search_suggestions_add_when = "empty"
     #: The changelist's template: the admin's, and the script's configuration.
     search_suggestions_template = "django_admin_suggest/change_list.html"
 
@@ -174,7 +204,8 @@ class SearchSuggestionsMixin(BaseModelAdmin):
 
     def search_suggestions_view(self, request: HttpRequest) -> JsonResponse:
         """``?q=``: the suggestions, as ``{"results": [{id, text, url}]}``;
-        none, and adding is offered: ``"add": {text, url}`` too."""
+        and, adding offered (``search_suggestions_add_when``), ``"add":
+        {text, url}`` too."""
         if not self.has_view_or_change_permission(request):
             raise PermissionDenied
         term = request.GET.get("q", "").strip()
@@ -194,7 +225,12 @@ class SearchSuggestionsMixin(BaseModelAdmin):
                     }
                 )
         data: dict[str, Any] = {"results": results}
-        add = None if results else self.get_search_suggestion_add_url(request, term)
+        labels = [result["text"] for result in results]
+        add = (
+            self.get_search_suggestion_add_url(request, term)
+            if offers_add(self.search_suggestions_add_when, term, labels)
+            else None
+        )
         if add:
             data["add"] = {
                 "text": gettext("Add “%(term)s”") % {"term": term},

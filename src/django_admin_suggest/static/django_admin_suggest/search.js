@@ -2,7 +2,9 @@
  * SearchSuggestionsMixin: the changelist's search box suggests the objects
  * it finds as one types (an ARIA combobox); choosing one, with the mouse or
  * the keyboard, opens its change page. Enter without choosing one searches
- * as always. When nothing is found, it may offer to add it (its add page). Its configuration: the JSON of #django-admin-suggest-search.
+ * as always. It may offer to add what was typed (its add page): when
+ * nothing is found, or after those found, as the server says. Its
+ * configuration: the JSON of #django-admin-suggest-search.
  *
  * The suggestions look like the admin's autocomplete fields: Select2's
  * dropdown (its markup and classes, on the admin's stylesheets, and
@@ -98,7 +100,7 @@
                 empty.textContent = options.texts.empty;
                 list.append(empty);
             }
-            // Nothing found: adding it is one more option, the last.
+            // Adding it is one more option, the last.
             const items = add ? [...found, { ...add, add: true }] : found;
             items.forEach((result, index) => {
                 const item = document.createElement("li");

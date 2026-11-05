@@ -5,8 +5,10 @@ running Django server.
 """
 
 import re
+from unittest.mock import patch
 
 import pytest
+from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import modify_settings, override_settings
@@ -188,6 +190,38 @@ class TestAutocompleteAdd(_AdminE2ETestCase):
         ).to_be_visible()
         expect(page.locator(".django-admin-suggest-autocomplete-add")).to_have_count(0)
 
+    def test_no_exact_offers_it_after_those_found(self):
+        self.create_album()
+        self.login()
+        page = self.page
+        image_admin = type(admin.site._registry[Image])
+        with patch.object(image_admin, "autocomplete_add_when", "no_exact"):
+            search = self.open_album_field()
+            search.press_sequentially("Holi")
+            options = page.locator(".select2-results__option")
+            expect(options).to_have_text(["Holiday", "+ Add “Holi”"])
+            # Enter: the one found, highlighted.
+            search.press("Enter")
+            holiday = Album.objects.get(title="Holiday")
+            expect(page.locator("#id_album")).to_have_value(str(holiday.pk))
+
+            # The arrows reach it; Enter adds it.
+            search = self.open_album_field()
+            search.press_sequentially("Holi")
+            expect(options).to_have_text(["Holiday", "+ Add “Holi”"])
+            search.press("ArrowDown")
+            expect(
+                page.locator(".django-admin-suggest-autocomplete-add")
+            ).to_have_class(re.compile("select2-results__option--highlighted"))
+            with page.expect_popup() as info:
+                search.press("Enter")
+            expect(info.value.locator("input[name=title]")).to_have_value("Holi")
+
+            # What was typed is one found: not offered.
+            search = self.open_album_field()
+            search.press_sequentially("holiday")
+            expect(options).to_have_text(["Holiday"])
+
 
 @modify_settings(INSTALLED_APPS={"prepend": "unfold"})
 @override_settings(ROOT_URLCONF="example.urls_unfold")
@@ -214,3 +248,22 @@ class TestAutocompleteAddUnfold(_AdminE2ETestCase):
         lake = Album.objects.get(title="Lake")
         expect(page.locator("#id_album")).to_have_value(str(lake.pk))
         expect(page.locator("iframe.related-modal-frame")).to_be_hidden()
+
+    def test_always_offers_it_after_those_found(self):
+        self.create_album()
+        self.login()
+        page = self.page
+        from gallery.admin_unfold import (
+            ImageAdmin as image_admin,  # noqa: PLC0415, N813
+        )
+
+        with patch.object(image_admin, "autocomplete_add_when", "always"):
+            page.goto(f"{self.live_server_url}/admin/gallery/image/add/")
+            page.locator("#id_album + .select2").click()
+            search = page.locator(".select2-container--open .select2-search__field")
+            search.press_sequentially("Holi")
+            add = page.locator(".django-admin-suggest-autocomplete-add")
+            expect(add).to_have_text("+ Add “Holi”")
+            add.click()
+            modal = page.frame_locator("iframe.related-modal-frame")
+            expect(modal.locator("input[name=title]")).to_have_value("Holi")

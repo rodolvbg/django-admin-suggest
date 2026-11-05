@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `autocomplete_add_when` and `search_suggestions_add_when`: when
+  "+ Add “…”" is offered — `"empty"` (nothing found, as before, the
+  default), `"always"` (after what's found, too) or `"no_exact"` (unless
+  one found is what was typed, case and spaces aside).
+
+### Changed
+
+- An autocomplete field's "+ Add “…”" is one of Select2's options: the
+  arrows and the mouse reach it, and it's highlighted as they are.
+
 ## [0.1.1] - 2026-10-30
 
 ### Added

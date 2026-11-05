@@ -3,6 +3,7 @@ add it."""
 
 from django.contrib import admin
 from django.contrib.auth.models import Permission, User
+from django.core.exceptions import ImproperlyConfigured
 from django.test import RequestFactory, TestCase
 from gallery.models import Album, Image
 
@@ -62,9 +63,16 @@ def field_attrs(admin_class, site, name="album"):
 class TestOptions(TestCase):
     def site(self, album_admin=admin.ModelAdmin):
         site = Site()
-        site.register(Album, type("AlbumAdmin", (album_admin,), {
-            "search_fields": ("^title",),
-        }))
+        site.register(
+            Album,
+            type(
+                "AlbumAdmin",
+                (album_admin,),
+                {
+                    "search_fields": ("^title",),
+                },
+            ),
+        )
         return site
 
     def test_its_related_admins_search_field(self):
@@ -74,6 +82,20 @@ class TestOptions(TestCase):
 
         _, _, attrs = field_attrs(ImageAdmin, self.site())
         assert attrs["data-django-admin-suggest-add-field"] == "title"
+
+    def test_when_empty_by_default_or_its_own(self):
+        class ImageAdmin(AutocompleteAddMixin, admin.ModelAdmin):
+            autocomplete_fields = ("album",)
+            autocomplete_add = True
+
+        _, _, attrs = field_attrs(ImageAdmin, self.site())
+        assert attrs["data-django-admin-suggest-add-when"] == "empty"
+        ImageAdmin.autocomplete_add_when = "no_exact"
+        _, _, attrs = field_attrs(ImageAdmin, self.site())
+        assert attrs["data-django-admin-suggest-add-when"] == "no_exact"
+        ImageAdmin.autocomplete_add_when = "sometimes"
+        with self.assertRaisesMessage(ImproperlyConfigured, "'sometimes' is not"):
+            field_attrs(ImageAdmin, self.site())
 
     def test_or_the_one_it_adds_with(self):
         class AlbumAdmin(SearchSuggestionsMixin, admin.ModelAdmin):
@@ -133,12 +155,21 @@ class TestInline(TestCase):
             autocomplete_add = True
 
         site = Site()
-        site.register(Album, type("AlbumAdmin", (admin.ModelAdmin,), {
-            "search_fields": ("title",),
-        }))
+        site.register(
+            Album,
+            type(
+                "AlbumAdmin",
+                (admin.ModelAdmin,),
+                {
+                    "search_fields": ("title",),
+                },
+            ),
+        )
         inline = ImageInline(Album, site)
         request = RequestFactory().get("/")
         request.user = User(is_superuser=True, is_active=True, is_staff=True)
         field = inline.formfield_for_dbfield(Image._meta.get_field("album"), request)
-        assert field.widget.widget.attrs["data-django-admin-suggest-add-field"] == "title"
+        assert (
+            field.widget.widget.attrs["data-django-admin-suggest-add-field"] == "title"
+        )
         assert "autocomplete.js" in str(inline.media)

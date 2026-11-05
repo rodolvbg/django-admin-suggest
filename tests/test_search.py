@@ -6,12 +6,14 @@ from unittest.mock import patch
 
 from django.contrib import admin
 from django.contrib.auth.models import Permission, User
+from django.core.exceptions import ImproperlyConfigured
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from django.utils import translation
 from gallery.models import Album, Image
 
 from django_admin_suggest import SearchSuggestionsMixin
+from django_admin_suggest.search import offers_add
 
 URL = "/admin/gallery/image/search-suggestions/"
 
@@ -272,6 +274,27 @@ class TestAdding(TestCase):
         site = admin.AdminSite(name="elsewhere")  # Not registered: no URLs.
         assert "add" not in self.suggest(Adding(Image, site), "Lake")
 
+    def test_always_after_those_found(self):
+        always = type("Always", (Adding,), {"search_suggestions_add_when": "always"})
+        data = self.suggest(always(Image, admin.site), "cabin")
+        assert [result["text"] for result in data["results"]] == ["Cabin"]
+        assert data["add"]["text"] == "Add “cabin”"
+
+    def test_no_exact_unless_one_is_what_was_typed(self):
+        no_exact = type(
+            "NoExact", (Adding,), {"search_suggestions_add_when": "no_exact"}
+        )
+        assert "add" not in self.suggest(no_exact(Image, admin.site), "  CABIN ")
+        data = self.suggest(no_exact(Image, admin.site), "winter")  # Its album's.
+        assert [result["text"] for result in data["results"]] == ["Cabin"]
+        assert data["add"]["text"] == "Add “winter”"
+        assert "add" in self.suggest(no_exact(Image, admin.site), "Lake")
+
+    def test_an_unknown_when(self):
+        wrong = type("Wrong", (Adding,), {"search_suggestions_add_when": "never"})
+        with self.assertRaisesMessage(ImproperlyConfigured, "'never' is not one of"):
+            self.suggest(wrong(Image, admin.site), "Lake")
+
     def test_the_add_page_fills_the_field(self):
         self.client.force_login(self.user)
         data = self.suggest(Adding(Image, admin.site), "Lake")
@@ -318,3 +341,11 @@ class TestChangelistTemplate(TestCase):
             "label": "Sugerencias",
             "empty": "No se encontró nada.",
         }
+
+
+def test_offers_add():
+    assert offers_add("empty", "Lake", [])
+    assert not offers_add("empty", "Lake", ["Lakeside"])
+    assert offers_add("always", "Lake", ["Lake"])
+    assert offers_add("no_exact", "Juan", ["Juan  Pérez", "Juana"])
+    assert not offers_add("no_exact", " juan   pérez ", ["Juan  Pérez"])

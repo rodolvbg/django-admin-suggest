@@ -49,6 +49,7 @@ class ImageAdmin(SearchSuggestionsMixin, admin.ModelAdmin):
     search_suggestions_limit = 8  # optional (8)
     search_suggestions_min_length = 2  # optional (2)
     search_suggestions_add = True  # optional: nothing found, "+ Add “…”"
+    search_suggestions_add_when = "no_exact"  # optional ("empty")
 
     def get_search_suggestion_label(self, request, obj):  # optional
         return f"{obj.title} · {obj.album}"
@@ -72,7 +73,8 @@ class ImageAdmin(SearchSuggestionsMixin, admin.ModelAdmin):
   (`"^title"` or `"title__iexact"` count as `title`; none: the add page
   empty), or the field's name (`search_suggestions_add = "title"`). Only
   for those who may add; `get_search_suggestion_add_url(request, term)`
-  changes where it leads (None: not offered).
+  changes where it leads (None: not offered). When, by
+  `search_suggestions_add_when` (see [When it offers to add](#when-it-offers-to-add)).
 - It looks like the admin's autocomplete fields: Select2's dropdown, on the
   admin's own stylesheets (and Unfold's), light and dark. The search box
   stays a text box: no jQuery, nor Select2's script.
@@ -93,9 +95,10 @@ With `search_suggestions_add`, when nothing is found:
 ## Adding from an autocomplete field
 
 An autocomplete field (`autocomplete_fields`) that finds nothing offers to
-add what was typed: "+ Add “…”", under "No results found", opens the
-field's own "add" link — the admin's popup, Unfold's modal — with it in a
-field of the add page; once saved, it's chosen, as the admin does.
+add what was typed: "+ Add “…”", under "No results found" (or, by
+`autocomplete_add_when`, after what it finds), opens the field's own "add"
+link — the admin's popup, Unfold's modal — with it in a field of the add
+page; once saved, it's chosen, as the admin does.
 
 ```python
 from django.contrib import admin
@@ -106,6 +109,7 @@ from django_admin_suggest import AutocompleteAddMixin
 class AppointmentAdmin(AutocompleteAddMixin, admin.ModelAdmin):
     autocomplete_fields = ("patient", "room")
     autocomplete_add = True  # or the fields that offer it: ("patient",)
+    autocomplete_add_when = "no_exact"  # optional ("empty")
 
     def get_autocomplete_add_field(self, request, db_field):  # optional
         return "full_name"  # the patient's field what was typed goes in
@@ -116,7 +120,9 @@ class AppointmentAdmin(AutocompleteAddMixin, admin.ModelAdmin):
   `name`), or, with `SearchSuggestionsMixin`, its `search_suggestions_add`.
   None: the add page as it is.
 - Only where the field has its "add" link: for those who may add one.
-- Mouse or Enter. For a single or multiple field (`ForeignKey`,
+- One more of Select2's options, the last: the arrows and the mouse reach
+  it, Enter adds it when it's the one highlighted (the first found, when
+  there are some). After the last page of results. For a single or multiple field (`ForeignKey`,
   `ManyToManyField`), in the form or in its inlines (the mixin goes on the
   inline, then).
 - It's the field's own link that opens it: whatever opens it (the admin's
@@ -127,6 +133,27 @@ class AppointmentAdmin(AutocompleteAddMixin, admin.ModelAdmin):
 ![The same, in Unfold](docs/screenshots/autocomplete-add-unfold.png)
 
 ![Unfold's modal, the album's add page with "Lake" as its title](docs/screenshots/autocomplete-add-unfold-modal.png)
+
+## When it offers to add
+
+`search_suggestions_add_when` (the search box) and `autocomplete_add_when`
+(an autocomplete field):
+
+| | "+ Add “…”" |
+| --- | --- |
+| `"empty"` (default) | when nothing is found |
+| `"always"` | after what's found, too |
+| `"no_exact"` | after what's found, unless one of them is what was typed (case and spaces aside): "Juan" with "Juan Pérez" and "Juana" found, offered; with a "Juan" found, not — no duplicate |
+
+Compared with the labels shown (`get_search_suggestion_label()`, the
+object's `str()`). Another value: `ImproperlyConfigured`.
+
+`autocomplete_add_when = "no_exact"`, "Juan" typed: "Juan Pérez" and
+"Juana" found, and "+ Add “Juan”" after them (reached with the arrows):
+
+![An album field with "Juan" typed: "Juan Pérez" and "Juana" found, and "+ Add “Juan”" highlighted after them](docs/screenshots/autocomplete-add-when.png)
+
+![The same, in Unfold](docs/screenshots/autocomplete-add-when-unfold.png)
 
 ## With other packages
 

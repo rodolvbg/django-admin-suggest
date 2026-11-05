@@ -4,10 +4,11 @@ from typing import TYPE_CHECKING, Any
 
 from django.contrib.admin.options import BaseModelAdmin
 from django.contrib.admin.widgets import AutocompleteMixin, RelatedFieldWidgetWrapper
+from django.core.exceptions import ImproperlyConfigured
 from django.forms import Media
 from django.utils.translation import gettext
 
-from .search import SearchSuggestionsMixin, search_add_field
+from .search import ADD_WHEN, SearchSuggestionsMixin, search_add_field
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -30,6 +31,11 @@ class AutocompleteAddMixin(BaseModelAdmin):
     a field of the add page; once saved, it's chosen, as the admin does.
     Only where that link is: for those who may add one.
 
+    ``autocomplete_add_when``: ``"always"``, after the objects found too;
+    ``"no_exact"``, unless one of them is what was typed (case and spaces
+    aside). Then, with arrows (or the mouse): Enter chooses what's
+    highlighted, the first found.
+
     The field: ``get_autocomplete_add_field()``, by default the related
     admin's search field (``search_add_field()``; with
     ``SearchSuggestionsMixin``, its ``get_search_suggestion_add_field()``).
@@ -37,6 +43,9 @@ class AutocompleteAddMixin(BaseModelAdmin):
 
     #: ``True``: every autocomplete field; or the names of those that offer it.
     autocomplete_add: bool | Sequence[str] = False
+    #: When it's offered: ``"empty"`` (nothing found), ``"always"`` (after
+    #: those found), or ``"no_exact"`` (unless one of them is what was typed).
+    autocomplete_add_when = "empty"
 
     def get_autocomplete_add_field(
         self, request: HttpRequest, db_field: Field[Any, Any]
@@ -70,8 +79,14 @@ class AutocompleteAddMixin(BaseModelAdmin):
                 )
             )
         ):
+            if self.autocomplete_add_when not in ADD_WHEN:
+                raise ImproperlyConfigured(
+                    f"autocomplete_add_when: {self.autocomplete_add_when!r} is "
+                    f"not one of {', '.join(map(repr, ADD_WHEN))}."
+                )
             attrs = widget.widget.attrs
             attrs["data-django-admin-suggest-add"] = gettext("Add “%(term)s”")
+            attrs["data-django-admin-suggest-add-when"] = self.autocomplete_add_when
             field = self.get_autocomplete_add_field(request, db_field)
             if field:
                 attrs["data-django-admin-suggest-add-field"] = field
